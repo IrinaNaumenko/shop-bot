@@ -1,18 +1,21 @@
-import time
-import requests
 import json
-from requests.exceptions import ReadTimeout
+import requests
 
-
-from config import BOT_TOKEN, BASE_URL, ADDRESSES_TEXT, CHILDREN_CHANNEL_URL, LINGERIE_CHANNEL_URL
-from wishes import get_random_wish
-from storage import can_get_wish, save_wish
+from config import MAX_TOKEN, BASE_URL, ADDRESSES_TEXT, CHILDREN_CHANNEL_URL, LINGERIE_CHANNEL_URL
 
 HEADERS = {
-    "Authorization": "f9LHodD0cOJ7x6p1nhw6fuNYUxPFuHRXuE-csabyOzLvbNaBuwTc0DN1BjEIlCLKjC1s07k8y98RbKBQhhQE",
+    "Authorization": MAX_TOKEN,
     "Content-Type": "application/json; charset=utf-8"
 }
-print("main.py запущен")
+
+
+def handle_catalog(chat_id):
+    text = (
+        "🛍 Каталог\n\n"
+        "Выбери категорию:"
+    )
+    send_message(chat_id, text, buttons=build_catalog_buttons())
+
 
 def build_main_buttons():
     return [
@@ -20,21 +23,21 @@ def build_main_buttons():
             {
                 "type": "link",
                 "text": "👶 Детская одежда",
-                "url": "https://max.ru/join/KnDN_ZjI64bc2WkA5T-bcycgse4OITs2LvD5tV57I1I"
+                "url": CHILDREN_CHANNEL_URL
             }
         ],
         [
             {
                 "type": "link",
                 "text": "👙 Нижнее бельё",
-                "url": "https://max.ru/join/oL7jV0AUuo8bfjQK62gpr46eSk6RvZjOzbnHB2B4Q70"
+                "url": LINGERIE_CHANNEL_URL
             }
         ],
         [
             {
                 "type": "message",
-                "text": "🔮 Гадалка",
-                "payload": "гадалка"
+                "text": "🛍 Каталог",
+                "payload": "каталог"
             }
         ],
         [
@@ -47,10 +50,32 @@ def build_main_buttons():
     ]
 
 
+def build_catalog_buttons():
+    return [
+        [{"type": "message", "text": "👗 Платья", "payload": "платье"}],
+        [{"type": "message", "text": "👖 Джинсы", "payload": "джинсы"}],
+        [{"type": "message", "text": "🧥 Верхняя одежда", "payload": "верхняя"}],
+        [{"type": "message", "text": "👕 Футболки", "payload": "футболка"}],
+        [{"type": "message", "text": "👚 Блузы", "payload": "блуза"}],
+        [{"type": "message", "text": "👗 Юбки", "payload": "юбка"}],
+        [{"type": "message", "text": "👜 Аксессуары", "payload": "аксессуары"}],
+        [{"type": "message", "text": "✨ Новинки", "payload": "новинка"}],
+        [{"type": "message", "text": "🔥 Распродажа", "payload": "распродажа"}],
+        [{"type": "message", "text": "🔙 Назад", "payload": "назад"}]
+    ]
+
+
+def send_catalog_tag(chat_id, title, tag):
+    text = (
+        f"{title}\n\n"
+        f"Мы уже всё подобрали за тебя 🤍\n"
+        f"Открой канал и ищи по тегу: #{tag}"
+    )
+    send_message(chat_id, text, buttons=build_catalog_buttons())
+
+
 def send_message(chat_id, text, buttons=None):
-    payload = {
-        "text": text
-    }
+    payload = {"text": text}
 
     if buttons:
         payload["attachments"] = [
@@ -67,25 +92,11 @@ def send_message(chat_id, text, buttons=None):
         params={"chat_id": chat_id},
         headers=HEADERS,
         data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
-        timeout=30
+        timeout=15
     )
+
     print("SEND:", response.status_code, response.text)
-
-
-def get_updates(marker=None):
-    params = {}
-    if marker is not None:
-        params["marker"] = marker
-
-    response = requests.get(
-        f"{BASE_URL}/updates",
-        headers=HEADERS,
-        params=params,
-        timeout=(5, 60)
-    )
-    print("UPDATES:", response.status_code, response.text)
     response.raise_for_status()
-    return response.json()
 
 
 def handle_start(chat_id):
@@ -93,34 +104,59 @@ def handle_start(chat_id):
         "Добро пожаловать 🤍\n\n"
         "Посмотри, что есть:"
     )
-
     send_message(chat_id, text, buttons=build_main_buttons())
 
 
-def handle_message(chat_id, user_id, text):
+def handle_message(chat_id, text):
     text = (text or "").strip().lower()
+    print("ПОЛУЧЕН ТЕКСТ:", text)
 
-    print("ПОЛУЧЕН ТЕКСТ:", text)  # чтобы видеть
-
-    if text in ["/start", "start", "меню"]:
+    if text in ["/start", "start", "меню", "назад"]:
         handle_start(chat_id)
         return
 
-    if "гадалка" in text:
-        allowed, old_wish = can_get_wish(user_id)
-
-        if not allowed:
-            send_message(chat_id, f"🔮 Сегодня тебе уже выпало:\n\n{old_wish}", buttons=build_main_buttons())
-            return
-
-        wish = get_random_wish()
-        save_wish(user_id, wish)
-
-        send_message(chat_id, f"🔮 Твоё сообщение на сегодня:\n\n{wish}", buttons=build_main_buttons())
+    if "каталог" in text:
+        handle_catalog(chat_id)
         return
 
     if "адрес" in text:
         send_message(chat_id, ADDRESSES_TEXT, buttons=build_main_buttons())
+        return
+
+    if "платье" in text:
+        send_catalog_tag(chat_id, "👗 Платья", "платье")
+        return
+
+    if "джинсы" in text:
+        send_catalog_tag(chat_id, "👖 Джинсы", "джинсы")
+        return
+
+    if "верхняя" in text:
+        send_catalog_tag(chat_id, "🧥 Верхняя одежда", "верхняя")
+        return
+
+    if "футболка" in text:
+        send_catalog_tag(chat_id, "👕 Футболки", "футболка")
+        return
+
+    if "блуза" in text:
+        send_catalog_tag(chat_id, "👚 Блузы", "блуза")
+        return
+
+    if "юбка" in text:
+        send_catalog_tag(chat_id, "👗 Юбки", "юбка")
+        return
+
+    if "аксессуары" in text:
+        send_catalog_tag(chat_id, "👜 Аксессуары", "аксессуары")
+        return
+
+    if "новинка" in text:
+        send_catalog_tag(chat_id, "✨ Новинки", "новинка")
+        return
+
+    if "распродажа" in text:
+        send_catalog_tag(chat_id, "🔥 Распродажа", "распродажа")
         return
 
     handle_start(chat_id)
@@ -129,80 +165,83 @@ def handle_message(chat_id, user_id, text):
 def handle_callback(update):
     callback = update.get("callback", {})
     payload = (callback.get("payload") or "").strip().lower()
+
     chat_id = update.get("chat_id")
-    user = update.get("user", {})
-    user_id = user.get("user_id")
+    if not chat_id:
+        chat_id = update.get("message", {}).get("recipient", {}).get("chat_id")
 
     if not chat_id:
         return
 
-    if payload == "гадалка":
-        allowed, old_wish = can_get_wish(user_id)
-
-        if not allowed:
-            send_message(chat_id, f"🔮 Сегодня тебе уже выпало:\n\n{old_wish}", buttons=build_main_buttons())
-            return
-
-        wish = get_random_wish()
-        save_wish(user_id, wish)
-        send_message(chat_id, f"🔮 Твоё сообщение на сегодня:\n\n{wish}", buttons=build_main_buttons())
+    if payload == "каталог":
+        handle_catalog(chat_id)
         return
 
     if payload == "адрес":
         send_message(chat_id, ADDRESSES_TEXT, buttons=build_main_buttons())
         return
 
+    if payload == "назад":
+        handle_start(chat_id)
+        return
+
+    if payload == "платье":
+        send_catalog_tag(chat_id, "👗 Платья", "платье")
+        return
+
+    if payload == "джинсы":
+        send_catalog_tag(chat_id, "👖 Джинсы", "джинсы")
+        return
+
+    if payload == "верхняя":
+        send_catalog_tag(chat_id, "🧥 Верхняя одежда", "верхняя")
+        return
+
+    if payload == "футболка":
+        send_catalog_tag(chat_id, "👕 Футболки", "футболка")
+        return
+
+    if payload == "блуза":
+        send_catalog_tag(chat_id, "👚 Блузы", "блуза")
+        return
+
+    if payload == "юбка":
+        send_catalog_tag(chat_id, "👗 Юбки", "юбка")
+        return
+
+    if payload == "аксессуары":
+        send_catalog_tag(chat_id, "👜 Аксессуары", "аксессуары")
+        return
+
+    if payload == "новинка":
+        send_catalog_tag(chat_id, "✨ Новинки", "новинка")
+        return
+
+    if payload == "распродажа":
+        send_catalog_tag(chat_id, "🔥 Распродажа", "распродажа")
+        return
+
     handle_start(chat_id)
 
 
-def run():
-    print("run() стартовал")
-    marker = None
+def process_update(update):
+    update_type = update.get("update_type")
 
-    while True:
-        try:
-            data = get_updates(marker)
-            updates = data.get("updates", [])
-            marker = data.get("marker", marker)
+    if update_type == "bot_started":
+        chat_id = update.get("chat_id")
+        if chat_id:
+            handle_start(chat_id)
+        return
 
-            for update in updates:
-                update_type = update.get("update_type")
+    if update_type == "message_callback":
+        handle_callback(update)
+        return
 
-                if update_type == "bot_started":
-                    chat_id = update.get("chat_id")
-                    if chat_id:
-                        handle_start(chat_id)
-                    continue
+    if update_type == "message_created":
+        message = update.get("message", {})
+        recipient = message.get("recipient", {})
+        chat_id = recipient.get("chat_id")
+        text = message.get("body", {}).get("text", "")
 
-                if update_type == "message_callback":
-                    handle_callback(update)
-                    continue
-
-                if update_type == "message_created":
-                    message = update.get("message", {})
-                    recipient = message.get("recipient", {})
-                    sender = message.get("sender", {})
-
-                    chat_id = recipient.get("chat_id")
-                    user_id = sender.get("user_id")
-                    text = message.get("body", {}).get("text", "")
-
-                    if chat_id:
-                        handle_message(chat_id, user_id, text)
-                    continue
-
-            time.sleep(1)
-
-        except Exception as e:
-            print("Ошибка:", e)
-            time.sleep(3)
-
-
-if __name__ == "__main__":
-    print("__main__ сработал")
-    run()
-
-
-if __name__ == "__main__":
-    print("__main__ сработал")
-    run()
+        if chat_id:
+            handle_message(chat_id, text)

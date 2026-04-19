@@ -1,20 +1,17 @@
-BOT_TOKEN = "Вf9LHodD0cOJ7x6p1nhw6fuNYUxPFuHRXuE-csabyOzLvbNaBuwTc0DN1BjEIlCLKjC1s07k8y98RbKBQhhQE"
-BASE_URL = "https://platform-api.max.ru"
+import os
+from dotenv import load_dotenv
 
-CHILDREN_CHANNEL_URL = "https://max.ru/ссылка_на_детский_канал"
-LINGERIE_CHANNEL_URL = "https://max.ru/ссылка_на_канал_белья"
+load_dotenv()
 
-ADDRESSES_TEXT = """
-📍 Наши адреса:
+MAX_TOKEN = os.getenv("MAX_TOKEN", "")
+BASE_URL = os.getenv("BASE_URL", "https://platform-api.max.ru")
+WEBHOOK_SECRET = os.getenv("WEBHOOK_SECRET", "")
 
-1️⃣ г. Энгельс ул.М.Горького д.28
-🕒 09:00 – 20:00  
+CHILDREN_CHANNEL_URL = os.getenv("CHILDREN_CHANNEL_URL", "")
+LINGERIE_CHANNEL_URL = os.getenv("LINGERIE_CHANNEL_URL", "")
 
-2️⃣ г. Энгельс, пр-т Ф.Энгельса, д.11  
-🕒 09:00 – 20:00  
-
-3️⃣ г. Энгельс, пр-т Ф.Энгельса, д.37
-🕒 09:00 – 20:00   
-
-🤍 Ждём тебя на примерку
-""".strip()
+ADDRESSES_TEXT = (
+    "📍 Наши адреса\n\n"
+    "— Адрес 1\n"
+    "— Адрес 2"
+)
